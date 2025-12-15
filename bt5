@@ -1,0 +1,133 @@
+import math
+import time
+import os
+import random
+
+try:
+    from colorama import init as colorama_init
+    colorama_init()
+except Exception:
+    # colorama không cài — vẫn chạy nhưng màu có thể không hiển thị đúng trên Windows
+    pass
+
+def draw_tree():
+    # Cấu hình
+    width = 80
+    height = 24
+    leaf_chars = ['*', '.', ',', ';', '^', '"']
+    light_chars = ['o', 'O', '@', '0']
+    A = 0
+    USE_COLOR = True  # set False nếu bạn muốn debug không có màu
+
+    # Kiểm tra kích thước terminal (chỉ thông báo; không thay đổi hành vi)
+    try:
+        cols, rows = os.get_terminal_size()
+    except OSError:
+        cols, rows = width, height
+    if cols < width or rows < height:
+        print(f"Warning: terminal nhỏ ({cols}x{rows}), nên resize >= {width}x{height}")
+        time.sleep(1.5)
+
+    # Clear lần đầu
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+    while True:
+        z_buffer = [0.0] * (width * height)
+        screen = [' '] * (width * height)
+
+        A += 0.07  # tốc độ xoay nhanh hơn 1 chút
+
+        # Giảm số điểm để test nhanh; chỉnh lại i_range khi muốn đẹp hơn
+        for i in range(0, 60, 1):  # giảm từ 100 -> 60
+            r = i * 0.4
+            for j in range(0, 360, 12):  # bước lớn hơn giúp nhanh hơn
+                rad = math.radians(j)
+                x = r * math.cos(rad)
+                y = i * 0.5 - 18
+                z = r * math.sin(rad)
+
+                rot_x = x * math.cos(A) + z * math.sin(A)
+                rot_z = -x * math.sin(A) + z * math.cos(A)
+                rot_y = y
+
+                distance = 40.0
+                # tránh chia cho 0
+                denom = (rot_z + distance)
+                if denom == 0:
+                    continue
+                ooz = 1.0 / denom
+
+                xp = int(width / 2 + 40 * ooz * rot_x)
+                yp = int(height / 2 - 20 * ooz * rot_y)
+
+                # clamp xp,yp
+                if xp < 0 or xp >= width or yp < 0 or yp >= height:
+                    continue
+                idx = xp + yp * width
+
+                if ooz > z_buffer[idx]:
+                    z_buffer[idx] = ooz
+                    if random.random() > 0.96:
+                        char = random.choice(light_chars)
+                        if USE_COLOR:
+                            color = '\033[91m' if random.random() > 0.5 else '\033[93m'
+                            screen[idx] = f"{color}{char}\033[0m"
+                        else:
+                            screen[idx] = char
+                    else:
+                        char = random.choice(leaf_chars)
+                        if USE_COLOR:
+                            screen[idx] = f"\033[32m{char}\033[0m"
+                        else:
+                            screen[idx] = char
+
+        # thân cây
+        for i in range(30, 36):
+            for w in range(-2, 3):
+                x = w
+                y = i - 18
+                z = 0
+                rot_x = x * math.cos(A) + z * math.sin(A)
+                rot_z = -x * math.sin(A) + z * math.cos(A)
+                denom = (rot_z + 40.0)
+                if denom == 0:
+                    continue
+                ooz = 1.0 / denom
+                xp = int(width / 2 + 40 * ooz * rot_x)
+                yp = int(height / 2 - 20 * ooz * y)
+                if xp < 0 or xp >= width or yp < 0 or yp >= height:
+                    continue
+                idx = xp + yp * width
+                if ooz > z_buffer[idx]:
+                    z_buffer[idx] = ooz
+                    if USE_COLOR:
+                        screen[idx] = f"\033[90m#\033[0m"
+                    else:
+                        screen[idx] = "#"
+
+        # tuyết
+        for k in range(len(screen)):
+            if screen[k] == ' ' and random.random() > 0.995:
+                screen[k] = '.'
+
+        # Về đầu màn hình — nếu terminal không hỗ trợ, thay bằng clear
+        # thử \033[H (cursor home). Nếu không đúng, bạn có thể uncomment dòng os.system(...) phía dưới
+        print('\033[H', end='')
+        # os.system('cls' if os.name == 'nt' else 'clear')
+
+        for i in range(height):
+            # join safe: mỗi phần tử có thể chứa escape codes, nhưng terminal sẽ render đúng
+            print(''.join(screen[i * width: (i + 1) * width]))
+        print(f"\n\033[1;31m{'MERRY CHRISTMAS!'.center(width)}\033[0m")
+        time.sleep(0.06)
+        break
+
+
+if __name__ == "__main__":
+    try:
+        draw_tree()
+    except KeyboardInterrupt:
+        print("\nGiáng sinh an lành!")
+
+        
+
